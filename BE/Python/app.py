@@ -9,6 +9,7 @@ from flask_cors import CORS
 import sys
 import os
 import logging
+import re
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -19,6 +20,169 @@ from script import EdusoftScraper
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
+
+# Vietnamese university classification thresholds (4.0 scale)
+CLASSIFICATION_THRESHOLDS = {
+    'Xuất sắc': {'min': 3.6, 'max': 4.0, 'name_en': 'Excellent'},
+    'Giỏi': {'min': 3.2, 'max': 3.59, 'name_en': 'Very Good'},
+    'Khá': {'min': 2.5, 'max': 3.19, 'name_en': 'Good'},
+    'Trung bình': {'min': 2.0, 'max': 2.49, 'name_en': 'Average'},
+    'Yếu': {'min': 0.0, 'max': 1.99, 'name_en': 'Weak'}
+}
+
+def calculate_grade_projection(grades_data: dict) -> dict:
+    """
+    Calculate grade projections based on current cGPA and credits.
+    
+    Args:
+        grades_data: Dictionary containing grades data with 'grades' list
+    
+    Returns:
+        Dictionary with projection information including:
+        - current_classification: Current degree classification
+        - current_cgpa: Current cumulative GPA (4.0 scale)
+        - total_credits: Total credits accumulated
+        - projections: Projections for each classification level
+    """
+    try:
+        grades = grades_data.get('grades', [])
+        
+        if not grades:
+            logger.warning("No grades found in grades_data")
+            return None
+        
+        # Extract current cGPA (latest "Điểm trung bình tích lũy (hệ 4)" value)
+        current_cgpa = None
+        total_credits = None
+        
+        # Iterate through grades to find the latest cumulative data
+        for grade in reversed(grades):
+            stt_value = grade.get('STT', '')
+            
+            # Extract cGPA from "Điểm trung bình tích lũy (hệ 4):X.XX"
+            if 'Điểm trung bình tích lũy (hệ 4)' in stt_value and current_cgpa is None:
+                # Match number after colon (handle both with and without space)
+                # Try multiple patterns to be robust
+                patterns = [
+                    r':\s*(\d+\.?\d*)',  # Standard pattern
+                    r':(\d+\.?\d*)',     # No space after colon
+                    r'(\d+\.?\d*)'       # Just the number
+                ]
+                for pattern in patterns:
+                    match = re.search(pattern, stt_value)
+                    if match:
+                        try:
+                            current_cgpa = float(match.group(1))
+                            logger.info(f"Extracted cGPA: {current_cgpa} from '{stt_value}'")
+                            break
+                        except ValueError:
+                            logger.error(f"Failed to convert cGPA to float: {match.group(1)}")
+            
+            # Extract total credits from "Số tín chỉ tích lũy:XXX"
+            if 'Số tín chỉ tích lũy' in stt_value and total_credits is None:
+                # Match number after colon (handle both with and without space)
+                # Try multiple patterns to be robust
+                patterns = [
+                    r':\s*(\d+)',        # Standard pattern
+                    r':(\d+)',           # No space after colon
+                    r'(\d+)'             # Just the number
+                ]
+                for pattern in patterns:
+                    match = re.search(pattern, stt_value)
+                    if match:
+                        try:
+                            total_credits = int(match.group(1))
+                            logger.info(f"Extracted total credits: {total_credits} from '{stt_value}'")
+                            break
+                        except ValueError:
+                            logger.error(f"Failed to convert credits to int: {match.group(1)}")
+            
+            # Break if we found both
+            if current_cgpa is not None and total_credits is not None:
+                break
+        
+        if current_cgpa is None or total_credits is None:
+            logger.warning(f"Failed to extract required data - cGPA: {current_cgpa}, total_credits: {total_credits}")
+            return None
+        
+        # Determine current classification
+        current_classification = None
+        current_classification_en = None
+        for class_name, thresholds in CLASSIFICATION_THRESHOLDS.items():
+            if thresholds['min'] <= current_cgpa <= thresholds['max']:
+                current_classification = class_name
+                current_classification_en = thresholds['name_en']
+                break
+        
+        # Calculate projections for each classification
+        # Assume typical program has ~140 credits total
+        # Adjust based on actual program requirements if known
+        typical_total_credits = 140
+        remaining_credits = max(0, typical_total_credits - total_credits)
+        
+        total_grade_points = current_cgpa * total_credits
+        projections = {}
+        
+        for class_name, thresholds in CLASSIFICATION_THRESHOLDS.items():
+            target_gpa = thresholds['min']
+            target_name_en = thresholds['name_en']
+            
+            # Calculate required total grade points for target classification
+            if remaining_credits > 0:
+                required_total_points = target_gpa * (total_credits + remaining_credits)
+                additional_points_needed = required_total_points - total_grade_points
+                required_gpa_remaining = additional_points_needed / remaining_credits
+                
+                # Clamp to prevent negative values (but allow > 4.0 to show impossibility)
+                required_gpa_remaining = max(0.0, required_gpa_remaining)
+                
+                # Determine status
+                if class_name == current_classification:
+                    status = 'current'
+                elif target_gpa > current_cgpa:
+                    status = 'higher'
+                else:
+                    status = 'lower'
+                
+                projections[class_name] = {
+                    'classification_en': target_name_en,
+                    'target_min_gpa': target_gpa,
+                    'required_gpa_remaining': round(required_gpa_remaining, 2),
+                    'remaining_credits': remaining_credits,
+                    'achievable': required_gpa_remaining <= 4.0,
+                    'status': status
+                }
+            else:
+                # No remaining credits - can't change classification
+                # Determine status
+                if class_name == current_classification:
+                    status = 'current'
+                elif target_gpa > current_cgpa:
+                    status = 'higher'
+                else:
+                    status = 'lower'
+                
+                projections[class_name] = {
+                    'classification_en': target_name_en,
+                    'target_min_gpa': target_gpa,
+                    'required_gpa_remaining': None,
+                    'remaining_credits': 0,
+                    'achievable': class_name == current_classification,
+                    'status': status
+                }
+        
+        return {
+            'current_classification': current_classification,
+            'current_classification_en': current_classification_en,
+            'current_cgpa': round(current_cgpa, 2),
+            'total_credits': total_credits,
+            'remaining_credits': remaining_credits,
+            'projections': projections
+        }
+        
+    except Exception as e:
+        logger.error(f"Error calculating grade projection: {str(e)}", exc_info=True)
+        return None
 
 # Health check endpoint
 @app.route('/health', methods=['GET'])
@@ -115,6 +279,24 @@ def get_grades():
                 'data': grades_data,  # Return what we got for debugging
                 'message': 'Failed to parse student information and grades. The page structure might have changed.'
             }), 500
+        
+        # Calculate grade projection
+        try:
+            grade_projection = calculate_grade_projection(grades_data)
+            if grade_projection:
+                grades_data['grade_projection'] = grade_projection
+                logger.info(f"Grade projection calculated successfully: {grade_projection.get('current_classification')}")
+            else:
+                logger.warning("Grade projection calculation returned None - this may indicate extraction failed")
+                # Add a debug field to help troubleshoot
+                grades_data['grade_projection_debug'] = {
+                    'message': 'Grade projection calculation failed',
+                    'grades_count': len(grades_data.get('grades', [])),
+                    'has_grades': bool(grades_data.get('grades'))
+                }
+        except Exception as e:
+            logger.error(f"Error in grade projection calculation: {str(e)}", exc_info=True)
+            grades_data['grade_projection_error'] = str(e)
         
         return jsonify({
             'success': True,
