@@ -1,0 +1,422 @@
+{
+  "users": [
+    {
+      "id": "u_1",
+      "email": "ititiu22076@hcmiu.edu.vn",
+      "passwordHash": "$2b$10$mockhash",
+      "fullName": "Lương Quang Huy",
+      "studentId": "ITITIU22076",
+      "role": "student",
+      "verified": true,
+      "preferences": { "currency": "VND", "emailAlerts": true },
+      "createdAt": "2025-09-01T08:00:00+07:00"
+    }
+  ],
+
+  "categories": [
+    { "id": "c_food", "userId": "u_1", "name": "Food" },
+    { "id": "c_transport", "userId": "u_1", "name": "Transport" },
+    { "id": "c_coffee", "userId": "u_1", "name": "Coffee" },
+    { "id": "c_study", "userId": "u_1", "name": "Study" },
+    { "id": "c_misc", "userId": "u_1", "name": "Misc" }
+  ],
+
+  "transactions": [
+    {
+      "id": "tx_001",
+      "userId": "u_1",
+      "amount": 45000,
+      "categoryId": "c_coffee",
+      "note": "Cà phê phin",
+      "occurredAt": "2025-10-28T08:40:00+07:00",
+      "createdAt": "2025-10-28T08:41:00+07:00"
+    },
+    {
+      "id": "tx_002",
+      "userId": "u_1",
+      "amount": 32000,
+      "categoryId": "c_transport",
+      "note": "Xe bus",
+      "occurredAt": "2025-10-28T18:05:00+07:00",
+      "createdAt": "2025-10-28T18:06:00+07:00"
+    },
+    {
+      "id": "tx_003",
+      "userId": "u_1",
+      "amount": 65000,
+      "categoryId": "c_food",
+      "note": "Cơm trưa",
+      "occurredAt": "2025-10-29T12:10:00+07:00",
+      "createdAt": "2025-10-29T12:11:00+07:00"
+    },
+    {
+      "id": "tx_004",
+      "userId": "u_1",
+      "amount": 180000,
+      "categoryId": "c_study",
+      "note": "In báo cáo SNS",
+      "occurredAt": "2025-10-29T14:30:00+07:00",
+      "createdAt": "2025-10-29T14:31:00+07:00"
+    },
+    {
+      "id": "tx_005",
+      "userId": "u_1",
+      "amount": 90000,
+      "categoryId": "c_food",
+      "note": "Lẩu ly + nước",
+      "occurredAt": "2025-10-30T19:15:00+07:00",
+      "createdAt": "2025-10-30T19:16:00+07:00"
+    },
+    {
+      "id": "tx_006",
+      "userId": "u_1",
+      "amount": 180000,
+      "categoryId": "c_misc",
+      "note": "Spotify share + data 4G",
+      "occurredAt": "2025-10-27T08:00:00+07:00",
+      "createdAt": "2025-10-27T08:01:00+07:00"
+    },
+    {
+      "id": "tx_007",
+      "userId": "u_1",
+      "amount": 55000,
+      "categoryId": "c_coffee",
+      "note": "Cold brew",
+      "occurredAt": "2025-11-01T09:00:00+07:00",
+      "createdAt": "2025-11-01T09:01:00+07:00"
+    },
+    {
+      "id": "tx_008",
+      "userId": "u_1",
+      "amount": 25000,
+      "categoryId": "c_transport",
+      "note": "Giữ xe",
+      "occurredAt": "2025-11-01T11:10:00+07:00",
+      "createdAt": "2025-11-01T11:11:00+07:00"
+    }
+  ],
+
+  "budgets": [
+    {
+      "id": "b_2025_10",
+      "userId": "u_1",
+      "scope": "monthly",
+      "month": "2025-10",
+      "limit": 4000000,
+      "categories": ["c_food", "c_transport", "c_coffee", "c_misc", "c_study"],
+      "used": 3150000,
+      "createdAt": "2025-10-01T00:00:00+07:00"
+    },
+    {
+      "id": "b_2025_11",
+      "userId": "u_1",
+      "scope": "monthly",
+      "month": "2025-11",
+      "limit": 4000000,
+      "categories": ["c_food", "c_transport", "c_coffee", "c_misc", "c_study"],
+      "used": 80000,
+      "createdAt": "2025-11-01T00:00:00+07:00"
+    }
+  ],
+
+  "alertRules": [
+    {
+      "id": "al_1",
+      "userId": "u_1",
+      "type": "budget_exceed",
+      "budgetId": "b_2025_10",
+      "threshold": 100,
+      "channel": "email",
+      "status": "active",
+      "createdAt": "2025-10-01T00:01:00+07:00"
+    },
+    {
+      "id": "al_2",
+      "userId": "u_1",
+      "type": "budget_exceed",
+      "budgetId": "b_2025_11",
+      "threshold": 80,
+      "channel": "email",
+      "status": "active",
+      "createdAt": "2025-11-01T00:01:00+07:00"
+    }
+  ],
+
+  "tuitionItems": [
+    {
+      "id": "ti_1",
+      "userId": "u_1",
+      "semester": "2025-1",
+      "course": "SNS",
+      "courseName": "System & Network Security",
+      "credits": 3,
+      "fee": 4500000
+    },
+    {
+      "id": "ti_2",
+      "userId": "u_1",
+      "semester": "2025-1",
+      "course": "OOP",
+      "courseName": "Object-Oriented Programming",
+      "credits": 4,
+      "fee": 5200000
+    },
+    {
+      "id": "ti_3",
+      "userId": "u_1",
+      "semester": "2025-1",
+      "course": "CAP",
+      "courseName": "Capstone Preparation",
+      "credits": 10,
+      "fee": 8800000
+    }
+  ],
+  "payments": [
+    {
+      "id": "pay_1",
+      "userId": "u_1",
+      "amount": 5000000,
+      "method": "bank",
+      "paidAt": "2025-10-15T10:00:00+07:00",
+      "note": "Đợt 1",
+      "posted": true
+    }
+  ],
+
+  "tasks": [
+    {
+      "id": "t_1",
+      "userId": "u_1",
+      "title": "Write BOF report",
+      "course": "SNS",
+      "dueAt": "2025-11-02T23:59:00+07:00",
+      "priority": "high",
+      "status": "open",
+      "notes": "Screenshots section 1-4",
+      "subtasks": [
+        { "id": "st_1", "title": "Section 1 screenshots", "done": false },
+        { "id": "st_2", "title": "Exploit writeup", "done": false }
+      ],
+      "createdAt": "2025-10-28T20:00:00+07:00"
+    },
+    {
+      "id": "t_2",
+      "userId": "u_1",
+      "title": "Revise OOP midterm",
+      "course": "OOP",
+      "dueAt": "2025-11-05T18:00:00+07:00",
+      "priority": "medium",
+      "status": "open",
+      "notes": "",
+      "subtasks": [],
+      "createdAt": "2025-10-29T09:00:00+07:00"
+    },
+    {
+      "id": "t_3",
+      "userId": "u_1",
+      "title": "CAP proposal outline",
+      "course": "CAP",
+      "dueAt": "2025-11-10T23:59:00+07:00",
+      "priority": "high",
+      "status": "open",
+      "notes": "Đưa luồng API caption hóa",
+      "subtasks": [{ "id": "st_3", "title": "Architecture diagram", "done": true }],
+      "createdAt": "2025-10-30T10:00:00+07:00"
+    },
+    {
+      "id": "t_4",
+      "userId": "u_1",
+      "title": "SNS Lab: Set-UID task",
+      "course": "SNS",
+      "dueAt": "2025-11-03T21:00:00+07:00",
+      "priority": "low",
+      "status": "done",
+      "completedAt": "2025-10-30T21:30:00+07:00",
+      "notes": "",
+      "subtasks": [],
+      "createdAt": "2025-10-27T09:00:00+07:00"
+    }
+  ],
+
+  "events": [
+    {
+      "id": "ev_1",
+      "userId": "u_1",
+      "title": "SNS Lecture",
+      "course": "SNS",
+      "start": "2025-10-31T09:00:00+07:00",
+      "end": "2025-10-31T11:00:00+07:00",
+      "room": "A2.201",
+      "rrule": { "freq": "WEEKLY", "byDay": ["FRI"] },
+      "createdAt": "2025-10-25T10:00:00+07:00"
+    },
+    {
+      "id": "ev_2",
+      "userId": "u_1",
+      "title": "OOP Lab",
+      "course": "OOP",
+      "start": "2025-11-01T13:30:00+07:00",
+      "end": "2025-11-01T15:00:00+07:00",
+      "room": "B1.105",
+      "rrule": null,
+      "createdAt": "2025-10-25T10:05:00+07:00"
+    },
+    {
+      "id": "ev_3",
+      "userId": "u_1",
+      "title": "CAP Mentoring",
+      "course": "CAP",
+      "start": "2025-11-02T09:00:00+07:00",
+      "end": "2025-11-02T10:00:00+07:00",
+      "room": "Online",
+      "rrule": null,
+      "createdAt": "2025-10-26T08:00:00+07:00"
+    }
+  ],
+
+  "reminders": [
+    {
+      "id": "r_1",
+      "userId": "u_1",
+      "type": "assignment_due",
+      "taskId": "t_1",
+      "remindAt": "2025-11-02T18:00:00+07:00",
+      "channel": "email",
+      "status": "scheduled"
+    },
+    {
+      "id": "r_2",
+      "userId": "u_1",
+      "type": "assignment_due",
+      "taskId": "t_2",
+      "remindAt": "2025-11-05T12:00:00+07:00",
+      "channel": "email",
+      "status": "scheduled"
+    }
+  ],
+
+  "grades": [
+    {
+      "id": "g_1",
+      "userId": "u_1",
+      "courseCode": "SNS",
+      "courseName": "System & Network Security",
+      "credits": 3,
+      "grade": 7.8,
+      "semester": "2025-1",
+      "createdAt": "2025-10-20T09:00:00+07:00"
+    },
+    {
+      "id": "g_2",
+      "userId": "u_1",
+      "courseCode": "OOP",
+      "courseName": "Object-Oriented Programming",
+      "credits": 4,
+      "grade": 7.2,
+      "semester": "2025-1",
+      "createdAt": "2025-10-21T09:00:00+07:00"
+    },
+    {
+      "id": "g_3",
+      "userId": "u_1",
+      "courseCode": "DBS",
+      "courseName": "Databases",
+      "credits": 3,
+      "grade": 8.1,
+      "semester": "2024-2",
+      "createdAt": "2024-12-15T09:00:00+07:00"
+    },
+    {
+      "id": "g_4",
+      "userId": "u_1",
+      "courseCode": "OS",
+      "courseName": "Operating Systems",
+      "credits": 3,
+      "grade": 7.0,
+      "semester": "2024-2",
+      "createdAt": "2024-12-16T09:00:00+07:00"
+    },
+    {
+      "id": "g_5",
+      "userId": "u_1",
+      "courseCode": "NET",
+      "courseName": "Computer Networks",
+      "credits": 3,
+      "grade": 7.5,
+      "semester": "2024-1",
+      "createdAt": "2024-06-05T09:00:00+07:00"
+    },
+    {
+      "id": "g_6",
+      "userId": "u_1",
+      "courseCode": "CAP",
+      "courseName": "Capstone Preparation",
+      "credits": 10,
+      "grade": null,
+      "semester": "2025-1",
+      "createdAt": "2025-10-25T09:00:00+07:00"
+    }
+  ],
+
+  "gradeProjectionSamples": [
+    {
+      "id": "gp_1",
+      "userId": "u_1",
+      "request": {
+        "target": "honors",
+        "scale": "10",
+        "rules": { "honorsMinGPA": 8.0, "goodMinGPA": 7.0, "passMin": 4.0 },
+        "current": { "creditsAttempted": 90, "creditsEarned": 90, "gpa": 7.45 },
+        "remaining": [{ "courseCode": "CAP", "credits": 10 }],
+        "whatIf": [{ "courseCode": "CAP", "expectedGrade": 8.5 }]
+      },
+      "response": {
+        "currentGPA": 7.45,
+        "needed": {
+          "toPass": [],
+          "toGood": [{ "courseCode": "CAP", "minGrade": 7.4 }],
+          "toHonors": [{ "courseCode": "CAP", "minGrade": 8.3 }]
+        },
+        "whatIfGPA": 7.66,
+        "probabilities": { "pass": 0.99, "good": 0.62, "honors": 0.28 }
+      }
+    }
+  ],
+
+  "datasets": [
+    {
+      "id": "ds_1",
+      "userId": "u_1",
+      "name": "SNS Midterm Cohort A",
+      "columns": ["studentId", "fullName", "grade"],
+      "createdAt": "2025-10-30T18:00:00+07:00"
+    }
+  ],
+  "datasetRows": [
+    { "id": "dr_1", "datasetId": "ds_1", "data": { "studentId": "ITITIU22076", "fullName": "Luong Quang Huy", "grade": 7.8 } },
+    { "id": "dr_2", "datasetId": "ds_1", "data": { "studentId": "ITITIU22053", "fullName": "Nguyen Duc Hien", "grade": 8.4 } },
+    { "id": "dr_3", "datasetId": "ds_1", "data": { "studentId": "ITITIU22099", "fullName": "Tran Gia Han", "grade": 6.9 } }
+  ],
+
+  "charts": [
+    {
+      "id": "ch_1",
+      "userId": "u_1",
+      "datasetId": "ds_1",
+      "spec": {
+        "type": "histogram",
+        "bins": 10,
+        "series": [
+          { "label": "grade", "data": [["0-1", 0], ["1-2", 0], ["2-3", 0], ["3-4", 0], ["4-5", 0], ["5-6", 0], ["6-7", 1], ["7-8", 1], ["8-9", 1], ["9-10", 0]] }
+        ],
+        "stats": { "count": 3, "mean": 7.7, "median": 7.8, "std": 0.62, "min": 6.9, "max": 8.4, "percentiles": { "p25": 7.35, "p75": 8.1 } }
+      }
+    }
+  ],
+
+  "emailProfile": {
+    "userId": "u_1",
+    "email": "ititiu22076@hcmiu.edu.vn",
+    "verified": true
+  }
+}
