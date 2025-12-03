@@ -6,13 +6,12 @@
 \usepackage{hyperref}
 \usepackage{listings}
 \usepackage{xcolor}
-\usepackage[vietnamese]{babel}
+% \usepackage[vietnamese]{babel}
 \usepackage{amsmath}
 \usepackage{booktabs}
 \usepackage{longtable}
 \usepackage{enumitem}
 \usepackage{titlesec}
-
 \geometry{margin=1in}
 
 % Code listing style
@@ -46,41 +45,60 @@
 {0em}
 {}
 
-\title{IT Project Management}
-\author{Project Report}
-\date{\today}
 
 \begin{document}
+\begin{titlepage}
+    \centering
+    
+    \vspace{1cm}
+    
+    {\Large\bfseries VIETNAM NATIONAL UNIVERSITY – HO CHI MINH CITY}\\[0.3cm]
+    {\Large\bfseries INTERNATIONAL UNIVERSITY}\\[0.3cm]
+    {\large\bfseries School of Computer Science and Engineering}
+    
+    \vspace{1.5cm}
+    
+    % --- Logo from URL ---
+    \centering
+    \includegraphics[width=0.25\linewidth]{Screenshot 2025-12-03 205743.png}
 
-\maketitle
-\section*{Group 2 - Project Team Members}
-\begin{center}
-\begin{tabular}{|l|l|}
-\hline
-\textbf{Student ID} & \textbf{Full Name} \\
-\hline
-ITITIU22198 & Trần Lưu Hồng Phương \\
-\hline
-ITITIU22177 & Nguyễn Quốc Tuấn \\
-\hline
-ITITIU22208 & Nguyễn Phúc Đạt \\
-\hline
-ITITIU22076 & Lương Quang Huy \\
-\hline
-ITCSIU22280 & Nguyễn Quách Dịch Thịnh \\
-\hline
-ITITIU22053 & Nguyễn Đức Hiền \\
-\hline
-\end{tabular}
-\end{center}
 
+    
+    
+    {\large SEMESTER 1 (2025–2026)}\\[1cm]
+    
+    {\Huge\bfseries Student Life Management Web App}\\[0.6cm]
+    {\Huge\bfseries CustomerConnects}\\[0.8cm]
+    
+    {\large Course: \textbf{IT Project Management}}\\[0.5cm]
+    {\large Date: 1/12/2025}
+    
+    \vspace{1.2cm}
+    \rule{\textwidth}{0.5pt}
+    \vspace{1.2cm}
+    
+    {\large\textbf{Group members:}}\\[0.6cm]
+    
+    \begin{tabular}{l}
+        Tran Luu Hong Phuong - ITITIU22198 \\[0.3cm]
+        Luong Quang Huy - ITITIU22076 \\[0.3cm]
+        Nguyen Phuc Dat - ITITIU22028 \\[0.3cm]
+        Nguyen Quach Dich Thinh - ITITIU22280 \\[0.3cm]
+        Nguyen Quoc Tuan - ITITIU22177 \\[0.3cm]
+        Nguyen Duc Hien - ITITIU22053 \\
+    \end{tabular}
+    
+    \vfill
+\end{titlepage}
+
+\newpage
 \tableofcontents
 \newpage
 
 \section{Introduction}
 
 \subsection{Project Overview}
-The ITPM system is a comprehensive academic management platform designed to help students organize their academic life. The system provides integrated features for managing tasks, tracking class schedules, monitoring academic grades, and managing expenses. The application follows modern web development practices with a clear separation between frontend and backend components.
+Our project is a comprehensive academic management platform designed to help students organize their academic life. The system provides integrated features for managing tasks, tracking class schedules, monitoring academic grades, and managing expenses. The application follows modern web development practices with a clear separation between frontend and backend components.
 
 \subsection{System Objectives}
 \begin{itemize}
@@ -95,7 +113,7 @@ The ITPM system is a comprehensive academic management platform designed to help
 \section{System Architecture}
 
 \subsection{Architecture Overview}
-The ITPM system follows a three-tier architecture:
+The system follows a three-tier architecture:
 
 \begin{enumerate}
     \item \textbf{Presentation Layer}: Next.js frontend application
