@@ -1,4 +1,5 @@
-import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsOptional, IsString, IsEnum } from 'class-validator';
+import { MoneyType } from '../entities/money.entity';
 
 export class CreateMoneyDto {
   @IsNotEmpty()
@@ -8,6 +9,10 @@ export class CreateMoneyDto {
   @IsNotEmpty()
   @IsNumber()
   readonly amount: number;
+
+  @IsNotEmpty()
+  @IsEnum(MoneyType)
+  readonly type: MoneyType;
 
   @IsOptional()
   @IsString()

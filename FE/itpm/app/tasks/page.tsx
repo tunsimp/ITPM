@@ -8,16 +8,16 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Clock, AlertCircle } from "lucide-react"
+import { Plus, Clock, AlertCircle, Pencil } from "lucide-react"
 import { TasksSkeleton } from "@/components/skeletons"
 
 interface Task {
   id: string
   title: string
-  course: string
-  dueDate: string
-  status: "pending" | "completed"
-  priority: "low" | "medium" | "high"
+  course?: string
+  dueDate?: string
+  status: "PENDING" | "COMPLETED"
+  priority: "LOW" | "MEDIUM" | "HIGH"
   reminder?: boolean
 }
 
@@ -26,6 +26,8 @@ export default function TasksPage() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<"all" | "pending" | "completed">("pending")
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [newTask, setNewTask] = useState({
     title: "",
     course: "",
@@ -50,39 +52,85 @@ export default function TasksPage() {
   }, [])
 
   const handleToggleTask = async (id: string, currentStatus: string) => {
-    const newStatus = currentStatus === "completed" ? "pending" : "completed"
-    const updated = await updateTask(id, { status: newStatus as "pending" | "completed" })
-    setTasks(tasks.map((t) => (t.id === id ? updated : t)))
+    const newStatus = currentStatus === "COMPLETED" ? "PENDING" : "COMPLETED"
+    try {
+      const updated = await updateTask(id, { status: newStatus as "PENDING" | "COMPLETED" })
+      setTasks(tasks.map((t) => (t.id === id ? updated : t)))
+    } catch (error) {
+      console.error("Failed to update task:", error)
+    }
   }
 
   const handleCreateTask = async () => {
-    if (!newTask.title || !newTask.course || !newTask.dueDate) return
+    if (!newTask.title) return
 
-    const created = await createTask({
-      title: newTask.title,
-      course: newTask.course,
-      dueDate: newTask.dueDate,
-      status: "pending",
-      priority: newTask.priority as "low" | "medium" | "high",
-      reminder: newTask.reminder,
+    try {
+      const created = await createTask({
+        title: newTask.title,
+        course: newTask.course || undefined,
+        dueDate: newTask.dueDate || undefined,
+        status: "PENDING",
+        priority: (newTask.priority.toUpperCase() as "LOW" | "MEDIUM" | "HIGH"),
+        reminder: newTask.reminder,
+      })
+
+      setTasks([...tasks, created])
+      setNewTask({ title: "", course: "", dueDate: "", priority: "medium", reminder: false })
+      setDialogOpen(false)
+    } catch (error) {
+      console.error("Failed to create task:", error)
+    }
+  }
+
+  const handleEditTask = (task: Task) => {
+    setEditingTask(task)
+    setNewTask({
+      title: task.title,
+      course: task.course || "",
+      dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split("T")[0] : "",
+      priority: task.priority.toLowerCase(),
+      reminder: task.reminder || false,
     })
+    setEditDialogOpen(true)
+  }
 
-    setTasks([...tasks, created])
-    setNewTask({ title: "", course: "", dueDate: "", priority: "medium", reminder: false })
-    setDialogOpen(false)
+  const handleUpdateTask = async () => {
+    if (!editingTask || !newTask.title) return
+
+    try {
+      const updated = await updateTask(editingTask.id, {
+        title: newTask.title,
+        course: newTask.course || undefined,
+        dueDate: newTask.dueDate || undefined,
+        priority: (newTask.priority.toUpperCase() as "LOW" | "MEDIUM" | "HIGH"),
+        reminder: newTask.reminder,
+      })
+
+      setTasks(tasks.map((t) => (t.id === editingTask.id ? updated : t)))
+      setEditingTask(null)
+      setNewTask({ title: "", course: "", dueDate: "", priority: "medium", reminder: false })
+      setEditDialogOpen(false)
+    } catch (error) {
+      console.error("Failed to update task:", error)
+    }
   }
 
   const filteredTasks = tasks.filter((task) => {
     if (filter === "all") return true
-    return task.status === filter
+    // Convert status to lowercase for comparison
+    const taskStatusLower = task.status.toLowerCase()
+    return taskStatusLower === filter
   })
 
   const sortedTasks = [...filteredTasks].sort((a, b) => {
-    if (a.status !== b.status) return a.status === "pending" ? -1 : 1
-    return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+    if (a.status !== b.status) return a.status === "PENDING" ? -1 : 1
+    const dateA = a.dueDate ? new Date(a.dueDate).getTime() : 0
+    const dateB = b.dueDate ? new Date(b.dueDate).getTime() : 0
+    return dateA - dateB
   })
 
-  const getDaysUntilDue = (dueDate: string) => {
+  const getDaysUntilDue = (dueDate?: string) => {
+    if (!dueDate) return 999
     const today = new Date()
     const due = new Date(dueDate)
     const diff = due.getTime() - today.getTime()
@@ -91,7 +139,8 @@ export default function TasksPage() {
   }
 
   const getPriorityIndicator = (priority: string) => {
-    switch (priority) {
+    const priorityLower = priority.toLowerCase()
+    switch (priorityLower) {
       case "high":
         return <div className="w-1 h-6 bg-red-500 rounded-full" />
       case "medium":
@@ -206,6 +255,73 @@ export default function TasksPage() {
               </div>
             </DialogContent>
           </Dialog>
+
+          {/* Edit Task Dialog */}
+          <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Edit Task</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-foreground block mb-2">Title</label>
+                  <Input
+                    placeholder="What do you need to do?"
+                    value={newTask.title}
+                    onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                    className="bg-secondary/50"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground block mb-2">Course</label>
+                  <Input
+                    placeholder="MATH101"
+                    value={newTask.course}
+                    onChange={(e) => setNewTask({ ...newTask, course: e.target.value })}
+                    className="bg-secondary/50"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground block mb-2">Due Date</label>
+                  <Input
+                    type="date"
+                    value={newTask.dueDate}
+                    onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
+                    className="bg-secondary/50"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground block mb-2">Priority</label>
+                  <Select
+                    value={newTask.priority}
+                    onValueChange={(value) => setNewTask({ ...newTask, priority: value })}
+                  >
+                    <SelectTrigger className="bg-secondary/50">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-3 pt-2">
+                  <Checkbox
+                    id="edit-reminder"
+                    checked={newTask.reminder}
+                    onCheckedChange={(checked) => setNewTask({ ...newTask, reminder: checked as boolean })}
+                  />
+                  <label htmlFor="edit-reminder" className="text-sm font-medium text-foreground cursor-pointer">
+                    Add reminder
+                  </label>
+                </div>
+                <Button onClick={handleUpdateTask} className="w-full mt-6">
+                  Update Task
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
         <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
@@ -213,11 +329,10 @@ export default function TasksPage() {
             <button
               key={f}
               onClick={() => setFilter(f as "all" | "pending" | "completed")}
-              className={`px-4 py-2 rounded-full font-medium transition-all whitespace-nowrap ${
-                filter === f
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary/50 text-foreground hover:bg-secondary"
-              }`}
+              className={`px-4 py-2 rounded-full font-medium transition-all whitespace-nowrap ${filter === f
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary/50 text-foreground hover:bg-secondary"
+                }`}
             >
               {f === "all" ? "All" : f === "pending" ? "Pending" : "Completed"}
             </button>
@@ -231,38 +346,45 @@ export default function TasksPage() {
               return (
                 <div
                   key={task.id}
-                  className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-all ${
-                    task.status === "completed"
-                      ? "bg-muted/50 opacity-60"
-                      : "bg-card hover:bg-secondary/50 border border-border"
-                  }`}
+                  className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-all ${task.status === "COMPLETED"
+                    ? "bg-muted/50 opacity-60"
+                    : "bg-card hover:bg-secondary/50 border border-border"
+                    }`}
                 >
                   <Checkbox
-                    checked={task.status === "completed"}
+                    checked={task.status === "COMPLETED"}
                     onCheckedChange={() => handleToggleTask(task.id, task.status)}
                     className="w-6 h-6"
                   />
 
                   <div className="flex-1 min-w-0">
                     <h3
-                      className={`font-medium text-foreground ${
-                        task.status === "completed" ? "line-through text-muted-foreground" : ""
-                      }`}
+                      className={`font-medium text-foreground ${task.status === "COMPLETED" ? "line-through text-muted-foreground" : ""
+                        }`}
                     >
                       {task.title}
                     </h3>
                     <div className="flex items-center gap-3 mt-1">
-                      <span className="text-xs text-muted-foreground font-medium">{task.course}</span>
-                      <span className={`text-xs font-medium ${getDueDateColor(daysLeft)}`}>
-                        {getDueDateLabel(daysLeft)}
-                      </span>
+                      {task.course && <span className="text-xs text-muted-foreground font-medium">{task.course}</span>}
+                      {task.dueDate && (
+                        <span className={`text-xs font-medium ${getDueDateColor(daysLeft)}`}>
+                          {getDueDateLabel(daysLeft)}
+                        </span>
+                      )}
                     </div>
                   </div>
 
-                  {/* Priority indicator */}
+                  {/* Priority indicator and edit button */}
                   <div className="flex items-center gap-3">
                     {task.reminder && <Clock className="w-4 h-4 text-primary" />}
                     {getPriorityIndicator(task.priority)}
+                    <button
+                      onClick={() => handleEditTask(task)}
+                      className="p-1.5 hover:bg-secondary rounded-md transition-colors"
+                      title="Edit task"
+                    >
+                      <Pencil className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                    </button>
                   </div>
                 </div>
               )

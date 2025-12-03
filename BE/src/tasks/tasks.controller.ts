@@ -5,30 +5,35 @@ import { UpdateTaskDto } from './dto/update-task.dto';
 
 @Controller('tasks')
 export class TasksController {
-    constructor(private readonly tasksService: TasksService) {}
+    constructor(private readonly tasksService: TasksService) { }
 
     @Post()
-    createTask(@Body() dto: CreateTaskDto) {
-        return this.tasksService.create(dto);
+    async createTask(@Body() dto: CreateTaskDto) {
+        const task = await this.tasksService.create(dto);
+        return task;
     }
 
     @Get()
-    getAllTasks() {
-        return this.tasksService.getAllTasks();
+    async getAllTasks() {
+        const tasks = await this.tasksService.getAllTasks();
+        return tasks;
     }
 
     @Get(':id')
-    getTaskById(@Param('id') id: string) {
-        return this.tasksService.getTaskById(id);
+    async getTaskById(@Param('id') id: string) {
+        const task = await this.tasksService.getTaskById(id);
+        return task;
     }
 
     @Put(':id')
-    updateTask(@Param('id') id: string, @Body() dto: UpdateTaskDto) {
-        return this.tasksService.updateTask(id, dto);
+    async updateTask(@Param('id') id: string, @Body() dto: UpdateTaskDto) {
+        const task = await this.tasksService.updateTask(id, dto);
+        return task;
     }
 
     @Delete(':id')
-    deleteTask(@Param('id') id: string) {
-        return this.tasksService.deleteTask(id);
+    async deleteTask(@Param('id') id: string) {
+        const result = await this.tasksService.deleteTask(id);
+        return result;
     }
 }

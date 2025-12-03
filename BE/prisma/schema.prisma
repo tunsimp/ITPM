@@ -3,13 +3,91 @@ generator client {
 }
 
 datasource db {
-  provider = "mongodb"
-  url = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  passwordHash String  @map("password_hash")
+  fullName    String   @map("full_name")
+  studentId   String   @unique @map("student_id")
+  role        String   @default("student")
+  verified    Boolean  @default(false)
+  emailAlerts Boolean  @default(true) @map("email_alerts")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  money Money[]
+  tasks Task[]
+  schedules Schedule[]
+
+  @@map("users")
+}
+
+model Money {
+  id          String    @id @default(uuid())
+  name        String
+  amount      Float
+  type        MoneyType
+  description String?
+  userId      String?   @map("user_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("money")
+}
+
+enum MoneyType {
+  EXPENSE
+  INCOME
 }
 
 model Task {
-  id String @id @default(auto()) @map("_id") @db.ObjectId
-  title String
-  completed Boolean @default(false)
-  createdAt DateTime @default(now())
+  id          String      @id @default(uuid())
+  title       String
+  course      String?
+  dueDate     DateTime?   @map("due_date")
+  status      TaskStatus  @default(PENDING)
+  priority    TaskPriority @default(MEDIUM)
+  reminder    Boolean     @default(false)
+  userId      String?     @map("user_id")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("tasks")
+}
+
+enum TaskStatus {
+  PENDING
+  COMPLETED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model Schedule {
+  id          String   @id @default(uuid())
+  course      String
+  code        String?
+  professor   String?
+  room        String?
+  time        String
+  day         String
+  isRecurring Boolean  @default(false) @map("is_recurring")
+  userId      String?  @map("user_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("schedules")
 }

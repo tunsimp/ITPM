@@ -1,13 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-
-export interface User {
-  id: string;
-  studentId: string;
-  name: string;
-  email: string;
-  gpa: number;
-}
+import type { User } from "./auth";
 
 export interface Credentials {
   username: string;
@@ -17,8 +10,9 @@ export interface Credentials {
 interface AuthStore {
   user: User | null;
   credentials: Credentials | null;
+  accessToken: string | null;
   isAuthenticated: boolean;
-  login: (user: User, credentials: Credentials) => void;
+  login: (user: User, credentials: Credentials, accessToken: string) => void;
   logout: () => void;
   getCredentials: () => Credentials | null;
 }
@@ -28,10 +22,11 @@ export const useAuthStore = create<AuthStore>()(
     (set, get) => ({
       user: null,
       credentials: null,
+      accessToken: null,
       isAuthenticated: false,
-      login: (user: User, credentials: Credentials) =>
-        set({ user, credentials, isAuthenticated: true }),
-      logout: () => set({ user: null, credentials: null, isAuthenticated: false }),
+      login: (user: User, credentials: Credentials, accessToken: string) =>
+        set({ user, credentials, accessToken, isAuthenticated: true }),
+      logout: () => set({ user: null, credentials: null, accessToken: null, isAuthenticated: false }),
       getCredentials: () => get().credentials,
     }),
     {
@@ -39,6 +34,7 @@ export const useAuthStore = create<AuthStore>()(
       partialize: (state) => ({
         user: state.user,
         credentials: state.credentials,
+        accessToken: state.accessToken,
         isAuthenticated: state.isAuthenticated,
       }),
     }

@@ -1,100 +1,100 @@
+const getApiUrl = (): string => {
+  if (typeof window === 'undefined') return 'http://localhost:4000';
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+};
+
+const API_URL = getApiUrl();
+
 export interface Task {
   id: string
   title: string
-  course: string
-  dueDate: string
-  status: "pending" | "completed"
-  priority: "low" | "medium" | "high"
+  course?: string
+  dueDate?: string
+  status: "PENDING" | "COMPLETED"
+  priority: "LOW" | "MEDIUM" | "HIGH"
   reminder?: boolean
+  createdAt?: string
+  updatedAt?: string
 }
 
-const MOCK_TASKS: Task[] = [
-  {
-    id: "1",
-    title: "Calculus Assignment 1",
-    course: "MATH101",
-    dueDate: "2025-11-20",
-    status: "pending",
-    priority: "high",
-  },
-  {
-    id: "2",
-    title: "Physics Lab Report",
-    course: "PHYS102",
-    dueDate: "2025-11-18",
-    status: "completed",
-    priority: "high",
-  },
-  {
-    id: "3",
-    title: "English Essay Draft",
-    course: "ENG101",
-    dueDate: "2025-11-25",
-    status: "pending",
-    priority: "medium",
-  },
-  {
-    id: "4",
-    title: "Chemistry Quiz Prep",
-    course: "CHEM101",
-    dueDate: "2025-11-17",
-    status: "pending",
-    priority: "medium",
-  },
-  { id: "5", title: "History Reading", course: "HIST101", dueDate: "2025-11-30", status: "pending", priority: "low" },
-]
+const fetchAPI = async <T>(endpoint: string, options?: RequestInit): Promise<T> => {
+  const response = await fetch(`${API_URL}${endpoint}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: `HTTP error! status: ${response.status}` }));
+    throw new Error(error.message || `HTTP error! status: ${response.status}`);
+  }
+
+  return response.json();
+};
 
 export const getTasks = async (): Promise<Task[]> => {
-  console.log("Using mock data for tasks")
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(MOCK_TASKS)
-    }, 500)
-  })
-}
+  try {
+    const result = await fetchAPI<Task[]>(`/tasks`);
+    return result.map(task => ({
+      ...task,
+      status: task.status as "PENDING" | "COMPLETED",
+      priority: task.priority as "LOW" | "MEDIUM" | "HIGH",
+    }));
+  } catch (error) {
+    console.error("Failed to fetch tasks:", error);
+    throw error;
+  }
+};
 
-export const createTask = async (task: Omit<Task, "id">): Promise<Task> => {
-  console.log("Creating task (mock)")
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({ ...task, id: Math.random().toString() })
-    }, 300)
-  })
-}
+export const createTask = async (task: Omit<Task, "id" | "createdAt" | "updatedAt">): Promise<Task> => {
+  try {
+    const result = await fetchAPI<Task>(`/tasks`, {
+      method: 'POST',
+      body: JSON.stringify({
+        title: task.title,
+        course: task.course,
+        dueDate: task.dueDate,
+        status: task.status || 'PENDING',
+        priority: task.priority || 'MEDIUM',
+        reminder: task.reminder || false,
+      }),
+    });
+    return result;
+  } catch (error) {
+    console.error("Failed to create task:", error);
+    throw error;
+  }
+};
 
 export const updateTask = async (id: string, task: Partial<Task>): Promise<Task> => {
-  console.log("Updating task (mock)")
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const existing = MOCK_TASKS.find((t) => t.id === id) || {
-        id,
-        title: "",
-        course: "",
-        dueDate: "",
-        status: "pending" as const,
-        priority: "medium" as const,
-      }
-      resolve({ ...existing, ...task })
-    }, 300)
-  })
-}
+  try {
+    const result = await fetchAPI<Task>(`/tasks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        title: task.title,
+        course: task.course,
+        dueDate: task.dueDate,
+        status: task.status,
+        priority: task.priority,
+        reminder: task.reminder,
+      }),
+    });
+    return result;
+  } catch (error) {
+    console.error("Failed to update task:", error);
+    throw error;
+  }
+};
 
-/*
-// Real API endpoints (commented out for future use)
-const API_URL = process.env.NEXT_PUBLIC_API_URL
-
-export const getTasks_real = async (): Promise<Task[]> => {
-  const { data } = await axios.get(`${API_URL}/api/tasks`)
-  return data
-}
-
-export const createTask_real = async (task: Omit<Task, 'id'>): Promise<Task> => {
-  const { data } = await axios.post(`${API_URL}/api/tasks`, task)
-  return data
-}
-
-export const updateTask_real = async (id: string, task: Partial<Task>): Promise<Task> => {
-  const { data } = await axios.put(`${API_URL}/api/tasks/${id}`, task)
-  return data
-}
-*/
+export const deleteTask = async (id: string): Promise<void> => {
+  try {
+    await fetchAPI(`/tasks/${id}`, {
+      method: 'DELETE',
+    });
+  } catch (error) {
+    console.error("Failed to delete task:", error);
+    throw error;
+  }
+};

@@ -6,12 +6,11 @@ import { DashboardSkeleton } from "@/components/skeletons"
 import { useAuthStore } from "@/lib/store"
 import { getDashboardSummary } from "@/lib/dashboard"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { AlertCircle, BookOpen, Clock, TrendingUp } from "lucide-react"
+import { BookOpen, Clock, TrendingUp } from "lucide-react"
 
 interface DashboardData {
   upcomingTasks: Array<{ id: string; title: string; dueDate: string; course: string }>
   todaySchedule: Array<{ id: string; course: string; time: string; room: string }>
-  tuitionStatus: { status: string; amount?: number }
   currentGpa: number
 }
 
@@ -55,13 +54,18 @@ export default function DashboardPage() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <Card className="bg-gradient-to-br from-primary/5 to-accent/5 border-primary/10">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Current GPA</p>
-                  <p className="text-2xl font-bold text-foreground">{data?.currentGpa}</p>
+                  <p className="text-2xl font-bold text-foreground">
+                    {data?.currentGpa ? data.currentGpa.toFixed(2) : "N/A"}
+                  </p>
+                  {!data?.currentGpa && (
+                    <p className="text-xs text-muted-foreground mt-1">View grades to see GPA</p>
+                  )}
                 </div>
                 <TrendingUp className="w-8 h-8 text-primary" />
               </div>
@@ -91,22 +95,6 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
-
-          <Card
-            className={`bg-gradient-to-br ${data?.tuitionStatus.status === "paid" ? "from-green-500/5 to-green-600/5 border-green-500/10" : "from-orange-500/5 to-orange-600/5 border-orange-500/10"}`}
-          >
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Tuition Status</p>
-                  <p className="text-lg font-bold text-foreground capitalize">{data?.tuitionStatus.status}</p>
-                </div>
-                <AlertCircle
-                  className={`w-8 h-8 ${data?.tuitionStatus.status === "paid" ? "text-green-600" : "text-orange-600"}`}
-                />
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Content Grid */}
@@ -118,18 +106,24 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {data?.upcomingTasks.map((task) => (
-                  <div key={task.id} className="flex items-start gap-4 pb-4 border-b border-border last:border-0">
-                    <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-foreground truncate">{task.title}</p>
-                      <p className="text-sm text-muted-foreground">{task.course}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Due: {new Date(task.dueDate).toLocaleDateString()}
-                      </p>
+                {data?.upcomingTasks && data.upcomingTasks.length > 0 ? (
+                  data.upcomingTasks.map((task) => (
+                    <div key={task.id} className="flex items-start gap-4 pb-4 border-b border-border last:border-0">
+                      <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-foreground truncate">{task.title}</p>
+                        <p className="text-sm text-muted-foreground">{task.course}</p>
+                        {task.dueDate && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Due: {new Date(task.dueDate).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">No upcoming tasks</p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -141,18 +135,22 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {data?.todaySchedule.map((event) => (
-                  <div key={event.id} className="flex items-start gap-4 pb-4 border-b border-border last:border-0">
-                    <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Clock className="w-5 h-5 text-primary" />
+                {data?.todaySchedule && data.todaySchedule.length > 0 ? (
+                  data.todaySchedule.map((event) => (
+                    <div key={event.id} className="flex items-start gap-4 pb-4 border-b border-border last:border-0">
+                      <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Clock className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-foreground">{event.course}</p>
+                        {event.time && <p className="text-sm text-muted-foreground">{event.time}</p>}
+                        {event.room && <p className="text-xs text-muted-foreground mt-1">Room {event.room}</p>}
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-foreground">{event.course}</p>
-                      <p className="text-sm text-muted-foreground">{event.time}</p>
-                      <p className="text-xs text-muted-foreground mt-1">Room {event.room}</p>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">No classes scheduled for today</p>
+                )}
               </div>
             </CardContent>
           </Card>

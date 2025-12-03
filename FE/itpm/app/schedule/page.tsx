@@ -2,16 +2,19 @@
 
 import { useEffect, useState } from "react"
 import { ProtectedLayout } from "@/components/protected-layout"
-import { getSchedule, syncScheduleToTasks } from "@/lib/schedule"
+import { getSchedule, syncScheduleToTasks, createSchedule, deleteSchedule, updateSchedule } from "@/lib/schedule"
+import { getTasks } from "@/lib/tasks"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { AlertCircle, Plus, X, ChevronLeft, ChevronRight } from "lucide-react"
+import { AlertCircle, Plus, X, ChevronLeft, ChevronRight, Pencil } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ScheduleSkeleton } from "@/components/skeletons"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Checkbox } from "@/components/ui/checkbox"
+import { toast } from "sonner"
 
 interface ScheduleEvent {
   id: string
@@ -21,9 +24,10 @@ interface ScheduleEvent {
   room: string
   time: string
   day: string
+  isRecurring?: boolean
 }
 
-const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 const MONTHS = [
   "January",
   "February",
@@ -45,6 +49,8 @@ export default function SchedulePage() {
   const [syncing, setSyncing] = useState(false)
   const [syncSuccess, setSyncSuccess] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editingEvent, setEditingEvent] = useState<ScheduleEvent | null>(null)
   const [viewMode, setViewMode] = useState<"week" | "year">("week")
   const [currentDate, setCurrentDate] = useState(new Date())
   const [newEvent, setNewEvent] = useState({
@@ -54,15 +60,43 @@ export default function SchedulePage() {
     room: "",
     time: "",
     day: "Monday",
+    isRecurring: false,
   })
 
   useEffect(() => {
     const fetchSchedule = async () => {
       try {
-        const schedule = await getSchedule()
-        setEvents(schedule)
+        // Fetch both schedule events and tasks
+        const [schedule, tasks] = await Promise.all([
+          getSchedule().catch(() => []),
+          getTasks().catch(() => []),
+        ])
+
+        // Convert tasks with course codes and due dates to schedule events
+        const taskEvents: ScheduleEvent[] = tasks
+          .filter((task) => task.status === "PENDING" && task.course && task.dueDate)
+          .map((task) => {
+            const dueDate = new Date(task.dueDate!)
+            const dayName = dueDate.toLocaleDateString('en-US', { weekday: 'long' })
+            const timeStr = dueDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+
+            return {
+              id: `task-${task.id}`,
+              course: task.title,
+              code: task.course || "",
+              professor: "",
+              room: "",
+              time: timeStr,
+              day: dayName,
+              isRecurring: false,
+            }
+          })
+
+        // Combine schedule events and task events
+        setEvents([...schedule, ...taskEvents])
       } catch (error) {
         console.error("Failed to fetch schedule:", error)
+        toast.error("Failed to load schedule")
       } finally {
         setLoading(false)
       }
@@ -74,55 +108,173 @@ export default function SchedulePage() {
   const handleSync = async () => {
     setSyncing(true)
     try {
+      // Fetch both schedule events and tasks
+      const [schedule, tasks] = await Promise.all([
+        getSchedule().catch(() => []),
+        getTasks().catch(() => []),
+      ])
+
+      // Convert tasks with course codes and due dates to schedule events
+      const taskEvents: ScheduleEvent[] = tasks
+        .filter((task) => task.status === "PENDING" && task.course && task.dueDate)
+        .map((task) => {
+          const dueDate = new Date(task.dueDate!)
+          const dayName = dueDate.toLocaleDateString('en-US', { weekday: 'long' })
+          const timeStr = dueDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+
+          return {
+            id: `task-${task.id}`,
+            course: task.title,
+            code: task.course || "",
+            professor: "",
+            room: "",
+            time: timeStr,
+            day: dayName,
+            isRecurring: false,
+          }
+        })
+
+      // Combine schedule events and task events
+      setEvents([...schedule, ...taskEvents])
+
       await syncScheduleToTasks()
       setSyncSuccess(true)
       setTimeout(() => setSyncSuccess(false), 3000)
+      toast.success("Schedule synced with tasks successfully")
     } catch (error) {
       console.error("Failed to sync schedule:", error)
+      toast.error("Failed to refresh schedule")
     } finally {
       setSyncing(false)
     }
   }
 
-  const handleAddEvent = () => {
+  const handleAddEvent = async () => {
     if (!newEvent.course || !newEvent.time || !newEvent.day) {
-      alert("Please fill in course, time, and day")
+      toast.error("Please fill in course, time, and day")
       return
     }
 
-    const event: ScheduleEvent = {
-      id: `custom-${Date.now()}`,
-      ...newEvent,
+    try {
+      // Create schedule event in database
+      const created = await createSchedule({
+        course: newEvent.course,
+        code: newEvent.code || "",
+        professor: newEvent.professor || "",
+        room: newEvent.room || "",
+        time: newEvent.time,
+        day: newEvent.day,
+        isRecurring: newEvent.isRecurring,
+      })
+
+      // Add event to local state
+      const event: ScheduleEvent = {
+        id: created.id,
+        ...newEvent,
+      }
+
+      setEvents([...events, event])
+      setNewEvent({
+        course: "",
+        code: "",
+        professor: "",
+        room: "",
+        time: "",
+        day: "Monday",
+        isRecurring: false,
+      })
+      setDialogOpen(false)
+      toast.success("Event added successfully")
+    } catch (error) {
+      console.error("Failed to add event:", error)
+      toast.error("Failed to save event to database")
+    }
+  }
+
+  const handleRemoveEvent = async (id: string) => {
+    try {
+      // Only delete schedule events from database, not task events
+      if (!id.startsWith("task-")) {
+        await deleteSchedule(id)
+      }
+      setEvents(events.filter((e) => e.id !== id))
+      toast.success("Event removed")
+    } catch (error) {
+      console.error("Failed to delete event:", error)
+      toast.error("Failed to delete event")
+    }
+  }
+
+  const handleEditEvent = (event: ScheduleEvent) => {
+    // Don't allow editing task events
+    if (event.id.startsWith("task-")) {
+      toast.error("Cannot edit task events. Edit the task instead.")
+      return
+    }
+    setEditingEvent(event)
+    setNewEvent({
+      course: event.course,
+      code: event.code || "",
+      professor: event.professor || "",
+      room: event.room || "",
+      time: event.time,
+      day: event.day,
+      isRecurring: event.isRecurring || false,
+    })
+    setEditDialogOpen(true)
+  }
+
+  const handleUpdateEvent = async () => {
+    if (!editingEvent || !newEvent.course || !newEvent.time || !newEvent.day) {
+      toast.error("Please fill in course, time, and day")
+      return
     }
 
-    setEvents([...events, event])
-    setNewEvent({
-      course: "",
-      code: "",
-      professor: "",
-      room: "",
-      time: "",
-      day: "Monday",
-    })
-    setDialogOpen(false)
+    try {
+      const updated = await updateSchedule(editingEvent.id, {
+        course: newEvent.course,
+        code: newEvent.code || "",
+        professor: newEvent.professor || "",
+        room: newEvent.room || "",
+        time: newEvent.time,
+        day: newEvent.day,
+        isRecurring: newEvent.isRecurring,
+      })
+
+      setEvents(events.map((e) => (e.id === editingEvent.id ? updated : e)))
+      setEditingEvent(null)
+      setNewEvent({
+        course: "",
+        code: "",
+        professor: "",
+        room: "",
+        time: "",
+        day: "Monday",
+        isRecurring: false,
+      })
+      setEditDialogOpen(false)
+      toast.success("Event updated successfully")
+    } catch (error) {
+      console.error("Failed to update event:", error)
+      toast.error("Failed to update event")
+    }
   }
 
-  const handleRemoveEvent = (id: string) => {
-    setEvents(events.filter((e) => e.id !== id))
+  const getEventsByDay = (day: string) => {
+    // Get events for this specific day (recurring events will show on their day every week)
+    return events.filter((e) => e.day === day)
   }
-
-  const getEventsByDay = (day: string) => events.filter((e) => e.day === day)
 
   const getWeekStart = (date: Date) => {
     const d = new Date(date)
-    const day = d.getDay()
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1)
+    const day = d.getDay() // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    const diff = d.getDate() - day // Go back to Sunday
     return new Date(d.setDate(diff))
   }
 
   const getWeekDays = (startDate: Date) => {
     const days = []
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 7; i++) {
       const d = new Date(startDate)
       d.setDate(d.getDate() + i)
       days.push(d)
@@ -236,8 +388,95 @@ export default function SchedulePage() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="flex items-center gap-3 pt-2">
+                    <Checkbox
+                      id="recurring"
+                      checked={newEvent.isRecurring}
+                      onCheckedChange={(checked) => setNewEvent({ ...newEvent, isRecurring: checked as boolean })}
+                    />
+                    <label htmlFor="recurring" className="text-sm font-medium text-foreground cursor-pointer">
+                      Repeat weekly
+                    </label>
+                  </div>
                   <Button onClick={handleAddEvent} className="w-full">
                     Add Event
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Edit Event</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-foreground">Course/Event Name</label>
+                    <Input
+                      placeholder="E.g., Physics Lab"
+                      value={newEvent.course}
+                      onChange={(e) => setNewEvent({ ...newEvent, course: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-foreground">Course Code</label>
+                    <Input
+                      placeholder="E.g., PHYS101"
+                      value={newEvent.code}
+                      onChange={(e) => setNewEvent({ ...newEvent, code: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-foreground">Professor/Instructor</label>
+                    <Input
+                      placeholder="E.g., Dr. Smith"
+                      value={newEvent.professor}
+                      onChange={(e) => setNewEvent({ ...newEvent, professor: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-foreground">Room/Location</label>
+                    <Input
+                      placeholder="E.g., Room 101"
+                      value={newEvent.room}
+                      onChange={(e) => setNewEvent({ ...newEvent, room: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-foreground">Time</label>
+                    <Input
+                      type="time"
+                      value={newEvent.time}
+                      onChange={(e) => setNewEvent({ ...newEvent, time: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-foreground">Day</label>
+                    <Select value={newEvent.day} onValueChange={(value) => setNewEvent({ ...newEvent, day: value })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DAYS.map((day) => (
+                          <SelectItem key={day} value={day}>
+                            {day}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-3 pt-2">
+                    <Checkbox
+                      id="edit-recurring"
+                      checked={newEvent.isRecurring}
+                      onCheckedChange={(checked) => setNewEvent({ ...newEvent, isRecurring: checked as boolean })}
+                    />
+                    <label htmlFor="edit-recurring" className="text-sm font-medium text-foreground cursor-pointer">
+                      Repeat weekly
+                    </label>
+                  </div>
+                  <Button onClick={handleUpdateEvent} className="w-full">
+                    Update Event
                   </Button>
                 </div>
               </DialogContent>
@@ -266,7 +505,7 @@ export default function SchedulePage() {
               <div>
                 <p className="text-sm text-muted-foreground">
                   {weekStart.toLocaleDateString()} -{" "}
-                  {new Date(weekStart.getTime() + 4 * 24 * 60 * 60 * 1000).toLocaleDateString()}
+                  {new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000).toLocaleDateString()}
                 </p>
               </div>
               <div className="flex gap-2">
@@ -290,7 +529,7 @@ export default function SchedulePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-7 gap-4">
               {weekDays.map((day, idx) => (
                 <Card key={idx} className="lg:min-h-96">
                   <CardHeader className="pb-3">
@@ -307,20 +546,48 @@ export default function SchedulePage() {
                         getEventsByDay(getDayName(day)).map((event) => (
                           <Dialog key={event.id}>
                             <DialogTrigger asChild>
-                              <div className="w-full text-left p-3 bg-primary/10 hover:bg-primary/15 rounded-lg transition-colors cursor-pointer relative group">
-                                <p className="font-medium text-foreground text-sm truncate">{event.course}</p>
-                                <p className="text-xs text-muted-foreground mt-1">{event.time}</p>
-                                {event.id.startsWith("custom-") && (
-                                  <button
-                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      handleRemoveEvent(event.id)
-                                    }}
-                                  >
-                                    <X className="w-4 h-4 text-destructive" />
-                                  </button>
-                                )}
+                              <div className={`w-full text-left p-3 rounded-lg transition-colors cursor-pointer relative group ${event.id.startsWith("task-")
+                                ? "bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20"
+                                : "bg-primary/10 hover:bg-primary/15"
+                                }`}>
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <p className="font-medium text-foreground text-sm truncate">{event.course}</p>
+                                      {event.id.startsWith("task-") && (
+                                        <span className="text-xs bg-blue-500/20 text-blue-700 dark:text-blue-400 px-1.5 py-0.5 rounded">Task</span>
+                                      )}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-1">{event.time}</p>
+                                    {event.isRecurring && (
+                                      <p className="text-xs text-primary mt-1">🔄 Recurring</p>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    {!event.id.startsWith("task-") && (
+                                      <button
+                                        className="p-1 hover:bg-secondary rounded transition-colors"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          handleEditEvent(event)
+                                        }}
+                                        title="Edit event"
+                                      >
+                                        <Pencil className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+                                      </button>
+                                    )}
+                                    <button
+                                      className="p-1 hover:bg-secondary rounded transition-colors"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleRemoveEvent(event.id)
+                                      }}
+                                      title="Remove event"
+                                    >
+                                      <X className="w-3.5 h-3.5 text-destructive" />
+                                    </button>
+                                  </div>
+                                </div>
                               </div>
                             </DialogTrigger>
                             <DialogContent>
@@ -344,6 +611,12 @@ export default function SchedulePage() {
                                   <p className="text-sm text-muted-foreground">Time</p>
                                   <p className="font-medium text-foreground">{event.time}</p>
                                 </div>
+                                {event.isRecurring && (
+                                  <div>
+                                    <p className="text-sm text-muted-foreground">Recurrence</p>
+                                    <p className="font-medium text-foreground">🔄 Repeats weekly on {event.day}</p>
+                                  </div>
+                                )}
                               </div>
                             </DialogContent>
                           </Dialog>
@@ -411,18 +684,17 @@ export default function SchedulePage() {
                         {monthDays.map((day, idx) => {
                           const hasEvent = day
                             ? getEventsByDay(
-                                DAYS[new Date(currentDate.getFullYear(), monthIdx, day || 1).getDay() - 1] || "Monday",
-                              ).length > 0
+                              DAYS[new Date(currentDate.getFullYear(), monthIdx, day || 1).getDay() - 1] || "Monday",
+                            ).length > 0
                             : false
 
                           return (
                             <div
                               key={idx}
-                              className={`text-center text-sm py-2 rounded transition-colors ${
-                                day
-                                  ? `hover:bg-secondary/50 cursor-pointer ${hasEvent ? "bg-primary/20 font-bold text-foreground" : "text-muted-foreground"}`
-                                  : ""
-                              }`}
+                              className={`text-center text-sm py-2 rounded transition-colors ${day
+                                ? `hover:bg-secondary/50 cursor-pointer ${hasEvent ? "bg-primary/20 font-bold text-foreground" : "text-muted-foreground"}`
+                                : ""
+                                }`}
                             >
                               {day}
                             </div>

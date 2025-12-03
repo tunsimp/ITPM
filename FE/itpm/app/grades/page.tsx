@@ -19,6 +19,8 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { GradesSkeleton } from "@/components/skeletons"
 import {
+  LineChart,
+  Line,
   AreaChart,
   Area,
   BarChart,
@@ -36,13 +38,17 @@ import {
 
 export default function GradesPage() {
   const router = useRouter()
-  const { credentials, isAuthenticated } = useAuthStore()
+  const { isAuthenticated } = useAuthStore()
+  const [edusoftCredentials, setEdusoftCredentials] = useState<{ username: string; password: string } | null>(null)
+  const [edusoftId, setEdusoftId] = useState("")
+  const [edusoftPassword, setEdusoftPassword] = useState("")
   const [gradesData, setGradesData] = useState<ProcessedGradesData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [predictor, setPredictor] = useState({
     currentGpa: 2.72,
     totalCredits: 115,
+    totalCreditsRequired: 150,
     targetGpa: 3.2,
   })
   const [prediction, setPrediction] = useState("")
@@ -50,39 +56,50 @@ export default function GradesPage() {
   const [selectedSemester, setSelectedSemester] = useState<string>("all")
 
   useEffect(() => {
-    if (!isAuthenticated || !credentials) {
+    if (!isAuthenticated) {
       router.push("/login")
       return
     }
+  }, [isAuthenticated, router])
 
-    const fetchGrades = async () => {
-      try {
-        const data = await getGrades({
-          username: credentials.username,
-          password: credentials.password,
-        })
-        setGradesData(data)
-        if (data.gradeProjection) {
-          setPredictor({
-            currentGpa: data.gradeProjection.current_cgpa,
-            totalCredits: data.gradeProjection.total_credits,
-            targetGpa: 3.2,
-          })
-        }
-      } catch (err) {
-        console.error("Failed to fetch grades:", err)
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Failed to fetch grades. Please make sure the API server is running."
-        )
-      } finally {
-        setLoading(false)
-      }
+  const handleSubmitCredentials = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!edusoftId.trim() || !edusoftPassword.trim()) {
+      setError("Please enter both EduSoft ID and password")
+      return
     }
 
-    fetchGrades()
-  }, [credentials, isAuthenticated, router])
+    setLoading(true)
+    setError(null)
+    setEdusoftCredentials({ username: edusoftId.trim(), password: edusoftPassword })
+
+    try {
+      const data = await getGrades({
+        username: edusoftId.trim(),
+        password: edusoftPassword,
+      })
+      setGradesData(data)
+      if (data.gradeProjection) {
+        setPredictor({
+          currentGpa: data.gradeProjection.current_cgpa,
+          totalCredits: data.gradeProjection.total_credits,
+          totalCreditsRequired: 150, // Default to 150, user can adjust
+          targetGpa: 3.2,
+        })
+      }
+    } catch (err) {
+      console.error("Failed to fetch grades:", err)
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to fetch grades. Please make sure the API server is running and check your credentials."
+      )
+      // Keep credentials in state so form fields remain filled, but clear the stored credentials
+      setEdusoftCredentials(null)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handlePredict = async () => {
     setPredictorLoading(true)
@@ -125,7 +142,21 @@ export default function GradesPage() {
 
   const getDisplayedCourses = (): GradeRecord[] => {
     if (!gradesData) return []
-    if (selectedSemester === "all") return gradesData.allCourses
+    if (selectedSemester === "all") {
+      // Deduplicate courses by course code to ensure unique entries for analytics
+      // Use a Map to keep the first occurrence of each course
+      const courseMap = new Map<string, GradeRecord>()
+      gradesData.allCourses.forEach((course) => {
+        // Only include courses with valid grades
+        if (course.grade && course.grade !== "" && course.grade !== "NA") {
+          // If course code already exists, keep the first one (or merge if needed)
+          if (!courseMap.has(course.courseCode)) {
+            courseMap.set(course.courseCode, course)
+          }
+        }
+      })
+      return Array.from(courseMap.values())
+    }
     const semester = gradesData.semesters.find((s) => s.semester === selectedSemester)
     return semester?.courses.filter((c) => c.grade && c.grade !== "" && c.grade !== "NA") || []
   }
@@ -152,8 +183,8 @@ export default function GradesPage() {
       }
     })
     return Object.entries(dist)
-      .map(([name, value]) => ({ 
-        name, 
+      .map(([name, value]) => ({
+        name,
         value,
         fill: getGradeHexColor(name),
       }))
@@ -169,8 +200,8 @@ export default function GradesPage() {
       }
     })
     return Object.entries(creditMap)
-      .map(([grade, credits]) => ({ 
-        grade, 
+      .map(([grade, credits]) => ({
+        grade,
         credits,
         fill: getGradeHexColor(grade),
       }))
@@ -193,9 +224,9 @@ export default function GradesPage() {
   const getCreditsProgressData = () => {
     if (!gradesData) return []
     const total = gradesData.gradeProjection.total_credits
-    const remaining = gradesData.gradeProjection.remaining_credits
-    const target = total + remaining
-    const percentage = (total / target) * 100
+    // Use a fixed target of 150 credits for visualization (or use totalCreditsRequired if available)
+    const target = 150
+    const percentage = Math.min((total / target) * 100, 100)
     return [
       {
         name: "Credits",
@@ -232,18 +263,63 @@ export default function GradesPage() {
     )
   }
 
-  if (error) {
+  // Show credentials form if not submitted or if there's an error
+  if (!edusoftCredentials || error) {
     return (
       <ProtectedLayout>
         <div className="p-8">
-          <Card className="border-red-200 dark:border-red-800">
-            <CardContent className="pt-6">
-              <p className="text-red-600 dark:text-red-400">{error}</p>
-              <Button onClick={() => window.location.reload()} className="mt-4">
-                Retry
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="max-w-2xl mx-auto">
+            <Card>
+              <CardHeader>
+                <CardTitle>Enter EduSoft Credentials</CardTitle>
+                <CardDescription>
+                  Please enter your EduSoft student ID and password to view your grades
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmitCredentials} className="space-y-4">
+                  <div>
+                    <label htmlFor="edusoft-id" className="text-sm font-medium text-foreground mb-2 block">
+                      EduSoft Student ID
+                    </label>
+                    <Input
+                      id="edusoft-id"
+                      type="text"
+                      placeholder="e.g., ITITIU22177"
+                      value={edusoftId}
+                      onChange={(e) => setEdusoftId(e.target.value)}
+                      disabled={loading}
+                      required
+                      className="w-full"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="edusoft-password" className="text-sm font-medium text-foreground mb-2 block">
+                      EduSoft Password
+                    </label>
+                    <Input
+                      id="edusoft-password"
+                      type="password"
+                      placeholder="Enter your password"
+                      value={edusoftPassword}
+                      onChange={(e) => setEdusoftPassword(e.target.value)}
+                      disabled={loading}
+                      required
+                      className="w-full"
+                    />
+                  </div>
+                  {error && (
+                    <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+                      <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                    </div>
+                  )}
+                  <Button type="submit" disabled={loading} className="w-full">
+                    {loading ? "Loading..." : "Fetch Grades"}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </ProtectedLayout>
     )
@@ -260,7 +336,22 @@ export default function GradesPage() {
         <div className="mb-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Academic Grades</h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-bold text-foreground">Academic Grades</h1>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setEdusoftCredentials(null)
+                    setGradesData(null)
+                    setError(null)
+                    setEdusoftId("")
+                    setEdusoftPassword("")
+                  }}
+                >
+                  Change Credentials
+                </Button>
+              </div>
               <p className="text-muted-foreground mt-1">
                 {studentInfo.ten_sinh_vien} • {studentInfo.ma_sinh_vien}
               </p>
@@ -281,7 +372,7 @@ export default function GradesPage() {
         </div>
 
         {/* Progress Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {/* GPA Gauge */}
           <Card className="relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10" />
@@ -312,9 +403,9 @@ export default function GradesPage() {
                 </div>
               </div>
               <div className="mt-3 h-2 bg-muted rounded-full overflow-hidden">
-                <div 
+                <div
                   className="h-full rounded-full transition-all duration-1000 ease-out"
-                  style={{ 
+                  style={{
                     width: `${(gradeProjection.current_cgpa / 4) * 100}%`,
                     background: "linear-gradient(90deg, #3b82f6, #8b5cf6)",
                   }}
@@ -333,11 +424,9 @@ export default function GradesPage() {
             <CardContent className="pt-6 relative">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Credits Progress</p>
+                  <p className="text-sm text-muted-foreground">Total Credits</p>
                   <p className="text-4xl font-bold mt-1">{gradeProjection.total_credits}</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    of {gradeProjection.total_credits + gradeProjection.remaining_credits} total
-                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">credits completed</p>
                 </div>
                 <div className="w-20 h-20">
                   <ResponsiveContainer width="100%" height="100%">
@@ -357,43 +446,6 @@ export default function GradesPage() {
                     </RadialBarChart>
                   </ResponsiveContainer>
                 </div>
-              </div>
-              <div className="mt-3 h-2 bg-muted rounded-full overflow-hidden">
-                <div 
-                  className="h-full rounded-full transition-all duration-1000 ease-out"
-                  style={{ 
-                    width: `${(gradeProjection.total_credits / (gradeProjection.total_credits + gradeProjection.remaining_credits)) * 100}%`,
-                    background: "linear-gradient(90deg, #8b5cf6, #ec4899)",
-                  }}
-                />
-              </div>
-              <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                <span>0</span>
-                <span>{gradeProjection.total_credits + gradeProjection.remaining_credits}</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Remaining Credits */}
-          <Card className="relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-orange-500/10" />
-            <CardContent className="pt-6 relative">
-              <p className="text-sm text-muted-foreground">Remaining</p>
-              <p className="text-4xl font-bold mt-1">{gradeProjection.remaining_credits}</p>
-              <p className="text-sm text-muted-foreground mt-1">credits to graduate</p>
-              <div className="mt-4 flex items-center gap-2">
-                <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
-                  <div 
-                    className="h-full rounded-full"
-                    style={{ 
-                      width: `${(gradeProjection.remaining_credits / (gradeProjection.total_credits + gradeProjection.remaining_credits)) * 100}%`,
-                      background: "linear-gradient(90deg, #f59e0b, #f97316)",
-                    }}
-                  />
-                </div>
-                <span className="text-xs font-medium">
-                  {Math.round((gradeProjection.remaining_credits / (gradeProjection.total_credits + gradeProjection.remaining_credits)) * 100)}%
-                </span>
               </div>
             </CardContent>
           </Card>
@@ -497,8 +549,7 @@ export default function GradesPage() {
               <CardHeader>
                 <CardTitle>Grade Classification Projections</CardTitle>
                 <CardDescription>
-                  Based on your current CGPA of {gradeProjection.current_cgpa.toFixed(2)} with{" "}
-                  {gradeProjection.remaining_credits} remaining credits
+                  Based on your current CGPA of {gradeProjection.current_cgpa.toFixed(2)}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -508,9 +559,8 @@ export default function GradesPage() {
                     .map(([classification, details]) => (
                       <Card
                         key={classification}
-                        className={`${
-                          details.status === "current" ? "ring-2 ring-primary" : ""
-                        }`}
+                        className={`${details.status === "current" ? "ring-2 ring-primary" : ""
+                          }`}
                       >
                         <CardContent className="pt-6">
                           <div className="flex items-center justify-between mb-2">
@@ -528,9 +578,8 @@ export default function GradesPage() {
                             <div className="flex justify-between">
                               <span className="text-muted-foreground">Required GPA (Remaining):</span>
                               <span
-                                className={`font-medium ${
-                                  details.required_gpa_remaining > 4.0 ? "text-red-500" : ""
-                                }`}
+                                className={`font-medium ${details.required_gpa_remaining > 4.0 ? "text-red-500" : ""
+                                  }`}
                               >
                                 {details.required_gpa_remaining.toFixed(2)}
                               </span>
@@ -575,8 +624,20 @@ export default function GradesPage() {
                       type="number"
                       min="0"
                       value={predictor.totalCredits}
-                      onChange={(e) => setPredictor({ ...predictor, totalCredits: Number.parseInt(e.target.value) })}
+                      onChange={(e) => setPredictor({ ...predictor, totalCredits: Number.parseInt(e.target.value) || 0 })}
                     />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-foreground">Total Credits Required</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={predictor.totalCreditsRequired}
+                      onChange={(e) => setPredictor({ ...predictor, totalCreditsRequired: Number.parseInt(e.target.value) || 0 })}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Total credits needed to graduate (Remaining: {Math.max(0, predictor.totalCreditsRequired - predictor.totalCredits)})
+                    </p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-foreground">Target GPA</label>
@@ -586,7 +647,7 @@ export default function GradesPage() {
                       max="4"
                       step="0.01"
                       value={predictor.targetGpa}
-                      onChange={(e) => setPredictor({ ...predictor, targetGpa: Number.parseFloat(e.target.value) })}
+                      onChange={(e) => setPredictor({ ...predictor, targetGpa: Number.parseFloat(e.target.value) || 0 })}
                     />
                   </div>
                   <Button onClick={handlePredict} disabled={predictorLoading} className="w-full">
@@ -613,27 +674,17 @@ export default function GradesPage() {
               <CardContent>
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={getGpaChartData()} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="colorGpa" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1}/>
-                        </linearGradient>
-                        <linearGradient id="colorCumulative" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8}/>
-                          <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.1}/>
-                        </linearGradient>
-                      </defs>
+                    <LineChart data={getGpaChartData()} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis 
-                        dataKey="name" 
+                      <XAxis
+                        dataKey="name"
                         stroke="hsl(var(--muted-foreground))"
                         fontSize={12}
                         tickLine={false}
                         axisLine={false}
                       />
-                      <YAxis 
-                        stroke="hsl(var(--muted-foreground))" 
+                      <YAxis
+                        stroke="hsl(var(--muted-foreground))"
                         domain={[0, 4]}
                         fontSize={12}
                         tickLine={false}
@@ -642,29 +693,25 @@ export default function GradesPage() {
                       />
                       <Tooltip content={<CustomTooltip />} />
                       <Legend />
-                      <Area
+                      <Line
                         type="monotone"
                         dataKey="gpa"
                         name="Semester GPA"
                         stroke="#3b82f6"
                         strokeWidth={3}
-                        fillOpacity={1}
-                        fill="url(#colorGpa)"
                         dot={{ fill: "#3b82f6", strokeWidth: 2, r: 5 }}
                         activeDot={{ r: 8, stroke: "#fff", strokeWidth: 2 }}
                       />
-                      <Area
+                      <Line
                         type="monotone"
                         dataKey="cumulative"
                         name="Cumulative GPA"
                         stroke="#8b5cf6"
                         strokeWidth={3}
-                        fillOpacity={1}
-                        fill="url(#colorCumulative)"
                         dot={{ fill: "#8b5cf6", strokeWidth: 2, r: 5 }}
                         activeDot={{ r: 8, stroke: "#fff", strokeWidth: 2 }}
                       />
-                    </AreaChart>
+                    </LineChart>
                   </ResponsiveContainer>
                 </div>
               </CardContent>
@@ -680,30 +727,30 @@ export default function GradesPage() {
                 <CardContent>
                   <div className="h-72">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart 
-                        data={getGradeDistribution()} 
+                      <BarChart
+                        data={getGradeDistribution()}
                         layout="vertical"
                         margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={true} vertical={false} />
                         <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                        <YAxis 
-                          type="category" 
-                          dataKey="name" 
-                          stroke="hsl(var(--muted-foreground))" 
+                        <YAxis
+                          type="category"
+                          dataKey="name"
+                          stroke="hsl(var(--muted-foreground))"
                           fontSize={12}
                           width={40}
                         />
-                        <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: "hsl(var(--background))", 
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "hsl(var(--background))",
                             border: "1px solid hsl(var(--border))",
                             borderRadius: "8px",
                           }}
                           formatter={(value: number) => [`${value} courses`, "Count"]}
                         />
-                        <Bar 
-                          dataKey="value" 
+                        <Bar
+                          dataKey="value"
                           radius={[0, 8, 8, 0]}
                           barSize={24}
                         />
@@ -726,43 +773,43 @@ export default function GradesPage() {
                         <defs>
                           {getCreditsByGrade().map((entry, index) => (
                             <linearGradient key={index} id={`gradient-${entry.grade}`} x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor={entry.fill} stopOpacity={1}/>
-                              <stop offset="100%" stopColor={entry.fill} stopOpacity={0.6}/>
+                              <stop offset="0%" stopColor={entry.fill} stopOpacity={1} />
+                              <stop offset="100%" stopColor={entry.fill} stopOpacity={0.6} />
                             </linearGradient>
                           ))}
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                        <XAxis 
-                          dataKey="grade" 
-                          stroke="hsl(var(--muted-foreground))" 
+                        <XAxis
+                          dataKey="grade"
+                          stroke="hsl(var(--muted-foreground))"
                           fontSize={12}
                           tickLine={false}
                           axisLine={false}
                         />
-                        <YAxis 
-                          stroke="hsl(var(--muted-foreground))" 
+                        <YAxis
+                          stroke="hsl(var(--muted-foreground))"
                           fontSize={12}
                           tickLine={false}
                           axisLine={false}
                         />
-                        <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: "hsl(var(--background))", 
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "hsl(var(--background))",
                             border: "1px solid hsl(var(--border))",
                             borderRadius: "8px",
                           }}
                           formatter={(value: number) => [`${value} credits`, "Credits"]}
                         />
-                        <Bar 
-                          dataKey="credits" 
+                        <Bar
+                          dataKey="credits"
                           radius={[8, 8, 0, 0]}
                           barSize={40}
                         >
                           {getCreditsByGrade().map((entry, index) => (
                             <defs key={`cell-def-${index}`}>
                               <linearGradient id={`bar-gradient-${index}`} x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor={entry.fill} stopOpacity={1}/>
-                                <stop offset="100%" stopColor={entry.fill} stopOpacity={0.7}/>
+                                <stop offset="0%" stopColor={entry.fill} stopOpacity={1} />
+                                <stop offset="100%" stopColor={entry.fill} stopOpacity={0.7} />
                               </linearGradient>
                             </defs>
                           ))}

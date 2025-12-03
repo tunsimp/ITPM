@@ -15,7 +15,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 export default function LoginPage() {
   const router = useRouter()
   const { login } = useAuthStore()
-  const [studentId, setStudentId] = useState("")
+  const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -26,12 +26,12 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const result = await loginUser({ studentId, password })
-      // Store both user and credentials
-      login(result.user, result.credentials)
+      const result = await loginUser({ email, password })
+      // Store user, credentials, and access token
+      login(result.user, result.credentials, result.accessToken)
       router.push("/dashboard")
     } catch (err) {
-      setError("Invalid credentials. Please try again.")
+      setError(err instanceof Error ? err.message : "Invalid credentials. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -59,15 +59,15 @@ export default function LoginPage() {
             )}
 
             <div className="space-y-2">
-              <label htmlFor="studentId" className="text-sm font-medium text-foreground">
-                Student ID
+              <label htmlFor="email" className="text-sm font-medium text-foreground">
+                Email
               </label>
               <Input
-                id="studentId"
-                type="text"
-                placeholder="ITITIU22xxx"
-                value={studentId}
-                onChange={(e) => setStudentId(e.target.value)}
+                id="email"
+                type="email"
+                placeholder="your.email@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
@@ -91,7 +91,10 @@ export default function LoginPage() {
             </Button>
 
             <p className="text-xs text-center text-muted-foreground mt-4">
-              Enter your student ID (e.g., ITITIU22xxx) and password
+              Don't have an account?{" "}
+              <a href="/register" className="text-primary hover:underline">
+                Sign up here
+              </a>
             </p>
           </form>
         </CardContent>

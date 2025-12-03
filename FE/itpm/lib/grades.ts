@@ -228,32 +228,37 @@ export const getGrades = async (
 export interface GradePredictor {
   currentGpa: number;
   totalCredits: number;
+  totalCreditsRequired: number;
   targetGpa: number;
 }
 
 export const predictGpa = async (
   predictor: GradePredictor
 ): Promise<string> => {
+  const remainingCredits = predictor.totalCreditsRequired - predictor.totalCredits;
+
+  if (remainingCredits <= 0) {
+    return `You have already completed or exceeded the required credits. Your current GPA is ${predictor.currentGpa.toFixed(2)}.`;
+  }
+
   const neededAverage =
-    (predictor.targetGpa * (predictor.totalCredits + 12) -
+    (predictor.targetGpa * predictor.totalCreditsRequired -
       predictor.currentGpa * predictor.totalCredits) /
-    12;
+    remainingCredits;
 
   if (neededAverage > 4.0) {
-    return `Your target GPA of ${
-      predictor.targetGpa
-    } is not achievable. You would need an average of ${neededAverage.toFixed(
-      2
-    )} (which exceeds 4.0) in your next 12 credits.`;
+    return `Your target GPA of ${predictor.targetGpa
+      } is not achievable. You would need an average of ${neededAverage.toFixed(
+        2
+      )} (which exceeds 4.0) in your remaining ${remainingCredits} credits.`;
   } else if (neededAverage < 0) {
     return `You've already exceeded your target GPA of ${predictor.targetGpa}! Keep up the great work.`;
   }
 
   return `You need to achieve an average of ${neededAverage.toFixed(
     2
-  )} in your next 12 credits to reach your target GPA of ${
-    predictor.targetGpa
-  }.`;
+  )} in your remaining ${remainingCredits} credits to reach your target GPA of ${predictor.targetGpa
+    }.`;
 };
 
 export const analyzeGrades = async (rawData: string): Promise<void> => {

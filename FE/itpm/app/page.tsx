@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { useAuthStore } from "@/lib/store"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { BookOpen, Calendar, ClipboardList, GraduationCap, TrendingUp, CreditCard, ArrowRight, CheckCircle2 } from "lucide-react"
+import { BookOpen, Calendar, ClipboardList, GraduationCap, TrendingUp, ArrowRight, CheckCircle2 } from "lucide-react"
 
 export default function Home() {
   const router = useRouter()
@@ -40,13 +40,6 @@ export default function Home() {
       description: "Stay on top of assignments, projects, and deadlines with smart task tracking",
       color: "text-purple-600",
       bgColor: "bg-purple-500/10",
-    },
-    {
-      icon: CreditCard,
-      title: "Tuition Status",
-      description: "Check your tuition balance, payment history, and upcoming due dates",
-      color: "text-orange-600",
-      bgColor: "bg-orange-500/10",
     },
   ]
 
@@ -86,15 +79,15 @@ export default function Home() {
             <GraduationCap className="w-4 h-4" />
             Your Academic Journey Starts Here
           </div>
-          
+
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight">
             Manage Your Studies
             <br />
             <span className="text-primary">Effortlessly</span>
           </h1>
-          
+
           <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10">
-            AcademiHub brings all your academic information together in one place. 
+            AcademiHub brings all your academic information together in one place.
             Track grades, manage tasks, view schedules, and stay on top of your education.
           </p>
 
@@ -133,8 +126,8 @@ export default function Home() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {features.map((feature, index) => (
-              <Card 
-                key={index} 
+              <Card
+                key={index}
                 className="border-border/50 bg-card/50 backdrop-blur-sm hover:shadow-lg hover:border-primary/20 transition-all duration-300 group"
               >
                 <CardContent className="pt-6 pb-6">

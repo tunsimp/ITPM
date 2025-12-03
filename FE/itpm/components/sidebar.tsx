@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Calendar, CheckSquare, CreditCard, BarChart3, LogOut, BookOpen } from "lucide-react"
+import { LayoutDashboard, Calendar, CheckSquare, BarChart3, LogOut, BookOpen, DollarSign } from "lucide-react"
 import { useAuthStore } from "@/lib/store"
 import { Button } from "@/components/ui/button"
 
@@ -15,7 +15,7 @@ export function Sidebar() {
     { href: "/schedule", label: "Schedule", icon: Calendar },
     { href: "/tasks", label: "Tasks", icon: CheckSquare },
     { href: "/grades", label: "Grades", icon: BarChart3 },
-    { href: "/tuition", label: "Tuition", icon: CreditCard },
+    { href: "/expenses", label: "Expenses & Income", icon: DollarSign },
   ]
 
   const handleLogout = () => {
